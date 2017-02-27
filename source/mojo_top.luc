@@ -1,0 +1,113 @@
+module mojo_top (
+    input clk,              // 50MHz clock
+    input rst_n,            // reset button (active low)
+    output led [8],         // 8 user controllable LEDs
+    input cclk,             // configuration clock, AVR ready when high
+    output spi_miso,        // AVR SPI MISO
+    input spi_ss,           // AVR SPI Slave Select
+    input spi_mosi,         // AVR SPI MOSI
+    input spi_sck,          // AVR SPI Clock
+    output spi_channel [4], // AVR general purpose pins (used by default to select ADC channel)
+    input avr_tx,           // AVR TX (FPGA RX)
+    output avr_rx,          // AVR RX (FPGA TX)
+    input avr_rx_busy,      // AVR RX buffer full
+    
+    input sens_F,
+    input sens_C,
+    input sens_L,
+    input sens_R,
+    
+    output sens_F_out,
+    output sens_C_out,
+    output sens_L_out,
+    output sens_R_out,
+    
+    output sens_and_all,
+    output sync_out,
+    output mask_out,
+    
+    output s_spi_miso,
+    input s_spi_mosi,
+    input s_spi_clk,
+    input s_spi_ss,
+    
+    output data_ready
+  ) {
+  
+  sig rst;                  // reset signal
+  sig sens_and_all_buf;
+  sig sens_F_mask, sens_C_mask, sens_L_mask, sens_R_mask;
+  sig all_ready;
+  
+  .clk(clk) {
+    // The reset conditioner is used to synchronize the reset signal to the FPGA
+    // clock. This ensures the entire FPGA comes out of reset at the same time.
+    reset_conditioner reset_cond;
+
+    .rst(rst) {
+      blinker myBlinker;
+      locktimer all_locktimer(#WIDTH(18), #PERIOD(26042), #DIV(4), #DUTY_CYCLE(220));
+      
+      spi_slave spi_out;
+      spi_memory spi_mem;
+      
+      .counter(all_locktimer.count_out) {
+        capture_center cap_F(#WIDTH(18));
+        capture_center cap_C(#WIDTH(18));
+        capture_center cap_L(#WIDTH(18));
+        capture_center cap_R(#WIDTH(18));
+      }
+    }
+  }
+  
+  always {
+    reset_cond.in = ~rst_n;    // input raw inverted reset signal
+    rst = reset_cond.out;      // conditioned reset
+    
+    led = 8x{myBlinker.blink}; // blink LEDs
+    spi_miso = bz;             // not using SPI
+    spi_channel = bzzzz;       // not using flags
+    avr_rx = bz;               // not using serial port
+    
+    sens_and_all_buf = sens_F & sens_C & sens_L & sens_R;
+    
+    all_locktimer.sync_pulse = sens_and_all_buf;
+    sens_and_all = sens_and_all_buf;
+    
+    sync_out = all_locktimer.out;
+    
+    sens_F_mask = sens_F & all_locktimer.mask_out;
+    sens_C_mask = sens_C & all_locktimer.mask_out;
+    sens_L_mask = sens_L & all_locktimer.mask_out;
+    sens_R_mask = sens_R & all_locktimer.mask_out;
+    
+    sens_F_out = sens_F_mask;
+    sens_C_out = sens_C_mask;
+    sens_L_out = sens_L_mask;
+    sens_R_out = sens_R_mask;
+    mask_out = all_locktimer.mask_out;
+    
+    cap_F.signal = sens_F_mask;
+    cap_C.signal = sens_C_mask;
+    cap_L.signal = sens_L_mask;
+    cap_R.signal = sens_R_mask;
+    
+    spi_mem.incr = spi_out.done;
+    spi_out.din = spi_mem.out_byte;
+    
+    spi_out.mosi = s_spi_mosi;
+    spi_out.sck = s_spi_clk;
+    spi_out.ss = s_spi_ss;
+    s_spi_miso = spi_out.miso;
+    
+    all_ready = cap_F.ready & cap_C.ready & cap_L.ready & cap_R.ready;
+    
+    data_ready = all_ready;
+    spi_mem.reset_addr = !all_ready;
+    
+    spi_mem.F = cap_F.center_out[15:0];
+    spi_mem.C = cap_C.center_out[15:0];
+    spi_mem.L = cap_L.center_out[15:0];
+    spi_mem.R = cap_R.center_out[15:0];
+  }
+}
