@@ -18,8 +18,12 @@ module locktimer (
   parameter __FZ_MARK = DUTY_CYCLE * 2;
   parameter __CZ_MARK = PERIOD - (__FZ_MARK);
   
+  parameter LOCKED_MAX = 5'b1;
+  
   reg signed [WIDTH - 1 : 0] count;
   reg [7 : 0] div_count;
+  
+  reg [4 : 0] locked;
   
   /* Front, center, and back zone counters. The marks for these zones are given by
    * __FZ_MARK and __CZ_MARK.
@@ -36,7 +40,7 @@ module locktimer (
       count <= 0;
       div_count <= 0;
       out <= 0;
-      //mask_out <= 0;
+      locked <= 0;
     end else begin
     
       // Divide the clock by DIV
@@ -44,7 +48,7 @@ module locktimer (
       
       if(div_count == 0) begin
       
-        if (count >= (PERIOD - 1)) begin
+        if (count >= /*$signed*/(PERIOD - 1)) begin
           /* If the counter has elapsed, compute the phase offset for this period,
            * and apply that phase offset to the count. If the counter has been offset
            * backwards, don't output a pulse at the next match so that the next period
@@ -82,7 +86,7 @@ module locktimer (
     end
   end
   
-  assign mask_out = ((count >= (__FZ_MARK - 1)) && (count < (__CZ_MARK - 1)));
+  assign mask_out = ((count >= (__FZ_MARK + DUTY_CYCLE - 1)) && (count < (__CZ_MARK - DUTY_CYCLE - 1)));
   
   assign count_out = count;
   

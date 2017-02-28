@@ -17,14 +17,7 @@ module mojo_top (
     input sens_L,
     input sens_R,
     
-    output sens_F_out,
-    output sens_C_out,
-    output sens_L_out,
-    output sens_R_out,
-    
-    output sens_and_all,
-    output sync_out,
-    output mask_out,
+    output la [8],
     
     output s_spi_miso,
     input s_spi_mosi,
@@ -51,7 +44,7 @@ module mojo_top (
       spi_slave spi_out;
       spi_memory spi_mem;
       
-      .counter(all_locktimer.count_out) {
+      .counter(all_locktimer.count_out), .clr_ready(all_locktimer.out) {
         capture_center cap_F(#WIDTH(18));
         capture_center cap_C(#WIDTH(18));
         capture_center cap_L(#WIDTH(18));
@@ -72,20 +65,11 @@ module mojo_top (
     sens_and_all_buf = sens_F & sens_C & sens_L & sens_R;
     
     all_locktimer.sync_pulse = sens_and_all_buf;
-    sens_and_all = sens_and_all_buf;
-    
-    sync_out = all_locktimer.out;
     
     sens_F_mask = sens_F & all_locktimer.mask_out;
     sens_C_mask = sens_C & all_locktimer.mask_out;
     sens_L_mask = sens_L & all_locktimer.mask_out;
     sens_R_mask = sens_R & all_locktimer.mask_out;
-    
-    sens_F_out = sens_F_mask;
-    sens_C_out = sens_C_mask;
-    sens_L_out = sens_L_mask;
-    sens_R_out = sens_R_mask;
-    mask_out = all_locktimer.mask_out;
     
     cap_F.signal = sens_F_mask;
     cap_C.signal = sens_C_mask;
@@ -109,5 +93,23 @@ module mojo_top (
     spi_mem.C = cap_C.center_out[15:0];
     spi_mem.L = cap_L.center_out[15:0];
     spi_mem.R = cap_R.center_out[15:0];
+    
+    // Debug signals
+    la[0] = sens_and_all_buf;
+    la[1] = all_locktimer.out;
+    la[2] = sens_F_mask;
+    la[3] = sens_C_mask;
+    la[4] = sens_L_mask;
+    la[5] = sens_R_mask;
+    la[6] = all_ready;
+    la[7] = spi_out.done;
+    
+    
+    /*la[0] = s_spi_mosi;
+    la[1] = spi_out.miso;
+    la[2] = s_spi_clk;
+    la[3] = s_spi_ss;
+    
+    la[7:4] = 0;*/
   }
 }
