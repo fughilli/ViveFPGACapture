@@ -51,3 +51,4 @@ NET "s_spi_clk" LOC = P6 | IOSTANDARD = LVTTL;
 NET "s_spi_ss" LOC = P2 | IOSTANDARD = LVTTL;
 
 NET "data_ready" LOC = P24 | IOSTANDARD = LVTTL;
+NET "which_sweep_out" LOC = P27 | IOSTANDARD = LVTTL;

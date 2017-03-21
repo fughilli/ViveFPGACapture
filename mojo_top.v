@@ -20,12 +20,15 @@ module mojo_top (
     input s_spi_mosi,
     input s_spi_clk,
     input s_spi_ss,
-    output reg data_ready
+    output reg data_ready,
+    output which_sweep_out
   );
 
   reg rst;
 
   reg sens_and_all_buf;
+
+  reg which_sweep;
 
   reg sens_F_mask;
   reg sens_C_mask;
@@ -153,6 +156,8 @@ module mojo_top (
     .ready(M_cap_R_ready)
   );
 
+  reg M_all_locktimer_out_q;
+
   always @(posedge clk) begin
     M_reset_cond_in = ~rst_n;
     rst = M_reset_cond_out;
@@ -196,5 +201,13 @@ module mojo_top (
     la[5+0-:1] = M_cap_C_ready;
     la[6+0-:1] = all_ready;
     la[7+0-:1] = M_all_locktimer_mask_out;
+
+    if (M_all_locktimer_out && !M_all_locktimer_out_q)
+    begin
+        which_sweep = !which_sweep;
+    end
+    M_all_locktimer_out_q = M_all_locktimer_out;
   end
+
+  assign which_sweep_out = which_sweep;
 endmodule
